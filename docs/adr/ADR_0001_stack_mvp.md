@@ -1,6 +1,6 @@
 # ADR 0001: Stack tecnológico del MVP PANOS
 
-- **Fecha**: 2024-04-07
+- **Fecha**: 2025-Octubre-14
 - **Estado**: Propuesto
 
 ## Contexto
