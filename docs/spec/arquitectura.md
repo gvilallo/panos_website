@@ -1,0 +1,76 @@
+# Arquitectura Lógica
+
+## Visión General del Sistema
+- **Objetivo**: habilitar un agente conversacional que guíe a prospectos desde la entrevista inicial hasta la agenda de la primera reunión, integrando generación de mockups y cobro de seña.
+- **Estilo**: arquitectura modular orientada a servicios con un orquestador central que administra estados de sesión y coordina integraciones externas (LLM, pagos, mensajería, calendarización).
+- **Dominios**: Captura & Entrevista, Generación Visual, Pagos & Onboarding, Back-office PANOS, Mensajería & Agenda, Telemetría & Cumplimiento.
+
+## Componentes Principales
+### 1. Front-end Conversacional
+- **Responsabilidades**: interfaz web en formato chat + panel lateral con resumen del brief, mockups y estado de progreso.
+- **Integraciones**: API Gateway (REST/GraphQL), canal WebSocket para actualizaciones en tiempo real, autenticación con PANOS Auth.
+- **Artefactos**: historial de conversación, formularios dinámicos, visor de mockups.
+
+### 2. API Gateway & BFF (Backend for Frontend)
+- **Responsabilidades**: exponer endpoints consolidados para el front, aplicar validaciones de esquema, normalizar respuestas y traducir errores técnicos a mensajes legibles.
+- **Cross-cutting**: rate limiting por IP, enforcement de scopes JWT, logging estructurado.
+
+### 3. Orquestador de Sesiones
+- **Responsabilidades**: implementar la máquina de estados del onboarding (descubrimiento → propuesta → seña → agenda → handoff humano).
+- **Capacidades**: manejo de contexto persistente, invocación de prompts predefinidos, selección de acciones (llamar LLM, generar mockup, iniciar pago), reanudación de sesiones.
+- **Persistencia**: almacena snapshots de sesión en la base operativa (tabla `session_states`).
+
+### 4. Servicio de Entrevista & Briefing
+- **Función**: gestionar árboles de preguntas, adaptar la entrevista a verticales y consolidar el brief estructurado.
+- **Integraciones**: LLM proveedor (para reescritura/resumen), motor de reglas para validar presupuestos mínimos y plazos.
+- **Artefactos**: plantillas de preguntas, checklist de confirmación, exportación a PDF.
+
+### 5. Servicio de Mockups
+- **Función**: generar wireframes iniciales mediante integración con herramienta externa (p.ej. Figma API o motor generativo).
+- **Flujo**: recibe brief, solicita variaciones, gestiona iteraciones rápidas con feedback del usuario.
+- **Persistencia**: metadatos de mockups (URL, versión, timestamp) en tabla `mockup_assets` y archivos en repositorio externo seguro.
+
+### 6. Servicio de Pagos & Comprobantes
+- **Función**: crear preferencias de pago en Mercado Pago (Checkout Pro y Links de Pago), registrar callbacks IPN/Webhooks, emitir comprobantes y almacenar recibos.
+- **Controles**: conciliación automática, verificación de estado `approved`, detección de duplicados.
+- **Artefactos**: órdenes de seña, registros de reconciliación, PDFs con comprobante.
+
+### 7. Servicio de Agenda & Mensajería
+- **Función**: coordinar disponibilidad de consultores PANOS, crear eventos en Google Calendar/Microsoft 365, enviar confirmaciones vía email y WhatsApp Cloud API.
+- **Consideraciones**: gestión de plantillas templated aprobadas por Meta, seguimiento de opt-in, cumplimiento anti-spam.
+
+### 8. Back-office PANOS
+- **Componentes**: dashboard interno para visualizar leads, estado de entrevistas, pagos y próximas reuniones.
+- **Roles**: socios PANOS (visión global), equipo de soporte (intervenciones), operaciones (conciliación pagos).
+- **Integraciones**: autenticación interna, servicios mencionados, módulos de reporting.
+
+### 9. Observabilidad & Cumplimiento
+- **Función**: centralizar logs, métricas y auditoría; garantizar retenciones conforme normativa argentina (AFIP, Ley 25.326).
+- **Stack**: pipeline ELK/CloudWatch/Datadog, storage cifrado, mecanismos de alertas.
+
+## Secuencia de Alto Nivel (E2E)
+1. **Inicio**: usuario accede al front, se crea sesión anónima y se solicita aceptación de términos y política de privacidad.
+2. **Entrevista**: el orquestador activa el servicio de entrevista, que combina preguntas guiadas con resúmenes generados por LLM; se guardan respuestas en el modelo de datos.
+3. **Clarificación & Mockups**: el orquestador invoca el servicio de mockups con el brief; se generan wireframes y se devuelven URLs al front.
+4. **Propuesta & Seña**: usuario confirma alcance; servicio de pagos crea preferencia en Mercado Pago y redirige al checkout/link. Webhook actualiza estado a `paid` y dispara generación de comprobante.
+5. **Agenda**: al confirmarse el pago, el servicio de agenda ofrece slots, reserva el seleccionado y envía confirmaciones por email y WhatsApp (plantilla “confirmación de reunión”).
+6. **Handoff**: back-office PANOS recibe alerta, revisa brief + mockups + comprobante y prepara la reunión.
+7. **Observabilidad**: cada etapa emite logs y métricas (tiempos, conversiones, errores) a la capa de observabilidad.
+
+## Interacciones Externas Clave
+- **LLM Provider**: endpoints para generación/resumen (securizados con API Key rotada).
+- **Herramienta de Mockups**: API REST para generar frames y obtener assets.
+- **Mercado Pago**: creación de órdenes, Webhooks, conciliación.
+- **WhatsApp Cloud API**: envío de plantillas, gestión de opt-in.
+- **Calendario**: APIs de calendarización (Google/Microsoft).
+- **Email Service**: proveedor SMTP/Transactional (SendGrid, Mailgun).
+
+## Consideraciones de Escalabilidad
+- Desacoplar front y servicios mediante colas/eventos (p.ej. para webhooks de pago).
+- Uso de cache distribuida para estados de sesión efímeros y rate limiting.
+- Sharding de logs/telemetría para soportar múltiples verticales.
+
+## Próximos pasos
+1. Elaborar diagramas C4 (Contexto, Contenedor, Componente) con las relaciones detalladas.
+2. Definir contratos asincrónicos (eventos) y SLAs por integración externa.
+3. Prototipar PoCs para LLM, mockups y Mercado Pago para validar latencias y tasas de error.

@@ -1,0 +1,77 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/docs/supuestos_riesgos.md b/docs/supuestos_riesgos.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..762ee901366f118fbe3284be38d31d4381936a4b
+--- /dev/null
++++ b/docs/supuestos_riesgos.md
+@@ -0,0 +1,68 @@
++# Supuestos, Límites y Gestión de Riesgos
++
++## Supuestos explícitos
++- Los prospectos completan la entrevista en una sola sesión de 15-20 minutos.
++- PANOS dispone de equipo de soporte humano para incidentes fuera de horario laboral.
++- Las integraciones con herramientas externas cuentan con APIs accesibles y documentación vigente.
++- Los prospectos aceptan compartir datos de negocio no sensibles durante la exploración.
++- Existe un presupuesto mínimo definido por vertical y consensuado con el equipo comercial.
++- El agente puede almacenar temporalmente información para generar mockups sin infringir licencias.
++- Mercado Pago aprueba la cuenta de la consultora con categoría Servicios Profesionales y habilita Checkout Pro y links de pago.
++- Meta valida la cuenta de WhatsApp Business con nivel 1 (250 conversaciones/24h) antes del lanzamiento del MVP.
++
++## Límites de la versión 1
++- Cobertura geográfica inicial: Argentina (pagos y comunicaciones adaptados a esta jurisdicción).
++- Solo vertical inmobiliaria completamente soportada; otras verticales con plantillas genéricas.
++- Mockups en fidelidad baja (wireframes) sin diseño final ni componentes de marca.
++- Proceso de contratación posterior a la seña se gestiona fuera del agente.
++- Integraciones con WhatsApp enfocadas en notificaciones unidireccionales (sin chat bidireccional completo).
++- Gestión documental limitada a plantillas base sin firma electrónica integrada.
++- Almacenamiento de datos de pago restringido a IDs de transacción y metadatos provistos por Mercado Pago.
++
++## Riesgos y mitigaciones
++### Técnicos
++- **Falla de integraciones externas**: implementar reintentos y monitoreo; definir planes de contingencia manual.
++- **Latencia en generación de mockups**: cachear prompts frecuentes y proveer mensajes de espera con progreso.
++- **Pérdida de contexto de conversación**: diseñar almacenamiento transaccional con checkpoints.
++
++### Legales y privacidad
++- **Incumplimiento de privacidad**: establecer DPA con proveedores y auditorías periódicas.
++- **Almacenamiento de datos sensibles**: aplicar cifrado en reposo y controles de acceso basados en roles.
++- **Derecho de revocación**: habilitar procesos ágiles para eliminar datos a petición.
++
++### Pagos
++- **Fraude o contracargos**: incorporar 3DSecure cuando esté disponible y monitoreo de anomalías.
++- **Fallas de conciliación**: automatizar reportes diarios y conciliaciones manuales semanales.
++- **Disponibilidad de pasarelas**: mantener métodos alternativos (transferencia manual) documentados.
++- **Rechazo de cuenta Mercado Pago**: preparar plan B con proveedor PSP local y documentación societaria/AFIP al día.
++- **Cambios en comisiones**: parametrizar recargos y reflejar en simulador de costos del agente.
++
++### WhatsApp y comunicaciones
++- **Rechazo de plantillas por Meta**: validar textos con políticas y mantener repertorio aprobado.
++- **Demoras en envíos**: configurar alertas de SLA y canales alternativos (email/SMS).
++- **Gestión de opt-out**: sincronizar bajas en todos los canales automáticamente.
++- **Bloqueo por spam**: monitorear ratios de calidad, limitar envíos marketing y auditar mensajes manualmente.
++- **Dependencia de Cloud API**: evaluar fallback con BSP local en caso de incidentes de Meta.
++
++## Implicancias de privacidad y retención (AR)
++- **Mercado Pago**: almacenar solo metadatos necesarios (importe, payer_id, status) por el período fiscal exigido (mínimo 10 años). Enmascarar datos personales en logs y restringir acceso a personal de finanzas.
++- **WhatsApp Business**: conservar contenido de mensajes máximo 30 días para trazabilidad; luego anonimizar y retener únicamente estados y timestamps. Documentar procesos de eliminación ante baja de consentimientos.
++- **Consentimientos**: registrar opt-in explícito para cobros (aceptación T&Cs + política de privacidad) y comunicaciones (checkbox con texto legal). Guardar evidencia (timestamp, IP, versión del texto) en almacenamiento seguro.
++- **Portabilidad y borrado**: establecer scripts para exportar datos bajo pedido y eliminar históricos de entrevistas sin afectar reportes agregados.
++
++## Checklist legal mínimo
++1. Política de privacidad adaptada a leyes argentinas y GDPR si se atienden leads UE.
++2. Aviso de uso de cookies y tracking.
++3. Términos y condiciones específicos para uso del agente y la seña.
++4. Política de retención y eliminación de datos con plazos definidos.
++5. Evaluación de impacto de privacidad (PIA) para tratamiento automatizado.
++6. Procesos para ejercicio de derechos ARCO.
++7. Documentación de alcance PCI DSS (se externaliza el manejo de tarjetas a la pasarela).
++8. Contratos con proveedores de mensajería y pagos que detallen responsabilidades.
++9. Consentimiento explícito para comunicaciones por WhatsApp y correo.
++10. Registro de incidentes y plan de respuesta ante brechas.
++
++## Próximos pasos
++- Validar supuestos con stakeholders comerciales, legales y técnicos.
++- Completar matriz de riesgos con probabilidades e impactos cuantificados.
++- Traducir checklist legal en requerimientos técnicos y operativos para la especificación. 
+EOF
+)

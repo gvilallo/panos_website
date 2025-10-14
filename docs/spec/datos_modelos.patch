@@ -1,0 +1,218 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/docs/spec/datos_modelo.md b/docs/spec/datos_modelo.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..3d03cdc7d0a42653e310ae2adc6f26ce701a1a20
+--- /dev/null
++++ b/docs/spec/datos_modelo.md
+@@ -0,0 +1,208 @@
++# Modelo de Datos Inicial
++
++## Principios
++- Minimizar datos personales almacenados, cumplir con Ley 25.326 y políticas de retención acordadas.
++- Utilizar PostgreSQL como base transaccional con extensiones `pgcrypto` (cifrado) y `pgvector` (resúmenes semánticos).
++- Separar datos operativos (entrevistas, pagos, agenda) de telemetría y logs (almacenados en data lake/log store).
++
++## Esquemas y Tablas
++
++### Esquema `core`
++#### Tabla `contacts`
++| Campo | Tipo | Descripción | Restricciones |
++|-------|------|-------------|---------------|
++| `contact_id` | UUID PK | Identificador del lead | `PRIMARY KEY` |
++| `full_name` | VARCHAR(120) | Nombre declarado | `NOT NULL` |
++| `email` | CITEXT | Email principal | `UNIQUE`, `NOT NULL` |
++| `phone_e164` | VARCHAR(20) | Teléfono en formato E.164 | `NOT NULL` |
++| `company_name` | VARCHAR(160) | Empresa/brand | `NULLABLE` |
++| `country` | CHAR(2) | Código país (ISO) | default `AR` |
++| `created_at` | TIMESTAMP | Fecha alta | `DEFAULT now()` |
++| `updated_at` | TIMESTAMP | Última modificación | trigger auto |
++
++- **Índices**: `UNIQUE(email)`, `INDEX(phone_e164)`. 
++- **Retención**: anonimizar tras 24 meses sin actividad, conservar email para historial comercial (excepción si solicita supresión).
++
++#### Tabla `consents`
++| Campo | Tipo | Descripción |
++|-------|------|-------------|
++| `consent_id` | UUID PK |
++| `contact_id` | UUID FK → `contacts` |
++| `terms_version` | VARCHAR(20) |
++| `privacy_version` | VARCHAR(20) |
++| `whatsapp_opt_in` | BOOLEAN |
++| `signed_at` | TIMESTAMP |
++| `ip_address` | INET |
++
++- **Índices**: compuesto `contact_id + signed_at`.
++- **Retención**: conservar 5 años para auditoría legal.
++
++#### Tabla `interviews`
++| Campo | Tipo | Descripción |
++|-------|------|-------------|
++| `interview_id` | UUID PK |
++| `contact_id` | UUID FK |
++| `project_type` | VARCHAR(60) |
++| `status` | ENUM (`draft`,`in_progress`,`completed`,`archived`) |
++| `started_at` | TIMESTAMP |
++| `completed_at` | TIMESTAMP |
++| `llm_summary` | TEXT | Resumen generado |
++| `vector_embedding` | VECTOR(1536) | Para búsquedas semánticas |
++
++- **Índices**: GIN sobre `vector_embedding`, B-Tree en `status` + `started_at`.
++- **Retención**: 24 meses activo; anonimizar respuestas sensibles al cerrar contrato definitivo.
++
++#### Tabla `interview_answers`
++| Campo | Tipo |
++|-------|------|
++| `answer_id` | UUID PK |
++| `interview_id` | UUID FK |
++| `question_id` | VARCHAR(50) |
++| `answer_text` | TEXT |
++| `answer_json` | JSONB | Para preguntas estructuradas |
++| `created_at` | TIMESTAMP |
++
++- **Índices**: `GIN(answer_json)` para consultas por campos estructurados.
++- **Retención**: misma que `interviews`.
++
++### Esquema `design`
++#### Tabla `mockup_requests`
++| Campo | Tipo |
++|-------|------|
++| `request_id` | UUID PK |
++| `interview_id` | UUID FK |
++| `status` | ENUM (`queued`,`processing`,`ready`,`failed`) |
++| `requested_pages` | JSONB |
++| `feedback` | TEXT |
++| `provider_job_id` | VARCHAR(80) |
++| `created_at` | TIMESTAMP |
++| `updated_at` | TIMESTAMP |
++
++- **Índices**: B-Tree en `status`, `interview_id`.
++- **Retención**: conservar 12 meses; mover metadatos a archivo histórico luego.
++
++#### Tabla `mockup_assets`
++| Campo | Tipo |
++|-------|------|
++| `asset_id` | UUID PK |
++| `request_id` | UUID FK → `mockup_requests` |
++| `page` | VARCHAR(50) |
++| `version` | SMALLINT |
++| `url` | TEXT |
++| `thumbnail_url` | TEXT |
++| `generated_at` | TIMESTAMP |
++
++- **Índices**: compuesto (`request_id`, `page`, `version`).
++- **Retención**: mantener metadatos 24 meses; assets almacenados en almacenamiento externo con lifecycle policy (archivar a los 18 meses, eliminar a los 36 salvo contrato activo).
++
++### Esquema `payments`
++#### Tabla `payment_intents`
++| Campo | Tipo |
++|-------|------|
++| `payment_id` | UUID PK |
++| `interview_id` | UUID FK |
++| `mp_preference_id` | VARCHAR(50) |
++| `channel` | ENUM(`checkout_pro`,`payment_link`) |
++| `amount` | NUMERIC(12,2) |
++| `currency` | CHAR(3) |
++| `status` | ENUM(`pending`,`approved`,`rejected`,`refunded`) |
++| `created_at` | TIMESTAMP |
++| `updated_at` | TIMESTAMP |
++| `expires_at` | TIMESTAMP |
++
++- **Índices**: `UNIQUE(mp_preference_id)`, B-Tree en `status`, `created_at`.
++- **Retención**: mantener 10 años (requerimiento fiscal AFIP para comprobantes); campos personales minimizados.
++
++#### Tabla `payment_receipts`
++| Campo | Tipo |
++|-------|------|
++| `receipt_id` | UUID PK |
++| `payment_id` | UUID FK |
++| `type` | ENUM(`comprobante`,`nota_credito`) |
++| `storage_url` | TEXT |
++| `issued_at` | TIMESTAMP |
++| `afip_caenum` | VARCHAR(20) |
++| `metadata` | JSONB |
++
++- **Índices**: `UNIQUE(payment_id, type)`.
++- **Retención**: 10 años (obligación fiscal).
++
++### Esquema `agenda`
++#### Tabla `availability_slots`
++| Campo | Tipo |
++|-------|------|
++| `slot_id` | UUID PK |
++| `consultant_id` | UUID |
++| `start_time` | TIMESTAMP WITH TIME ZONE |
++| `end_time` | TIMESTAMP WITH TIME ZONE |
++| `status` | ENUM(`available`,`reserved`,`blocked`) |
++
++- **Índices**: compuesto (`consultant_id`, `start_time`), B-Tree en `status`.
++- **Retención**: 12 meses.
++
++#### Tabla `bookings`
++| Campo | Tipo |
++|-------|------|
++| `booking_id` | UUID PK |
++| `slot_id` | UUID FK |
++| `interview_id` | UUID FK |
++| `channel` | ENUM(`video_call`,`phone`,`in_person`) |
++| `status` | ENUM(`scheduled`,`completed`,`no_show`,`cancelled`) |
++| `created_at` | TIMESTAMP |
++| `updated_at` | TIMESTAMP |
++
++- **Índices**: `UNIQUE(slot_id)` para evitar doble reserva.
++- **Retención**: 24 meses; anonimizar notas sensibles tras cierre del proyecto.
++
++### Esquema `messaging`
++#### Tabla `whatsapp_messages`
++| Campo | Tipo |
++|-------|------|
++| `message_id` | VARCHAR(80) PK |
++| `interview_id` | UUID FK |
++| `template_name` | VARCHAR(80) |
++| `language` | VARCHAR(10) |
++| `status` | ENUM(`queued`,`sent`,`delivered`,`failed`,`read`) |
++| `opt_in_source` | VARCHAR(50) |
++| `sent_at` | TIMESTAMP |
++| `metadata` | JSONB |
++
++- **Índices**: B-Tree en `status`, `sent_at`; `GIN(metadata)` para tracking.
++- **Retención**: 18 meses; eliminar contenido del mensaje tras 90 días, conservar metadatos para auditoría.
++
++### Esquema `audit`
++#### Tabla `event_logs`
++| Campo | Tipo |
++|-------|------|
++| `event_id` | BIGSERIAL PK |
++| `entity_type` | VARCHAR(40) |
++| `entity_id` | UUID |
++| `event_type` | VARCHAR(60) |
++| `payload` | JSONB |
++| `actor_id` | UUID | usuario o sistema |
++| `created_at` | TIMESTAMP |
++
++- **Índices**: `GIN(payload)`, `B-Tree(entity_type, created_at)`.
++- **Retención**: 5 años para cumplimiento interno.
++
++## Datos Sensibles y Cifrado
++- Campos `phone_e164`, `email`, `llm_summary` cifrados en reposo (TDE) y en tránsito.
++- Uso de `pgcrypto` para cifrado a nivel columna en `payment_intents` (identificación fiscal) y `contacts`.
++
++## Estrategia de Backups
++- Snapshots diarios con retención 30 días.
++- Backups incrementales cada hora, replicados en región secundaria (cumpliendo soberanía de datos en Argentina con copia en Brasil como DR).
++
++## Catálogo de Retención
++| Tipo de dato | Retención activa | Acción post-retención |
++|--------------|-----------------|-----------------------|
++| Leads sin convertir | 24 meses | Anonimizar datos personales |
++| Pagos & comprobantes | 10 años | Archivo cifrado (AFIP) |
++| Consentimientos | 5 años | Archivo en bóveda legal |
++| Mensajes WhatsApp | 18 meses (metadatos), 90 días (contenido) | Purga de contenido |
++| Mockups | 24 meses | Archivo/Eliminación condicionada |
++
++## Próximos pasos
++1. Generar diagrama entidad-relación (ERD) y validar con stakeholders de negocio y legales.
++2. Definir migraciones iniciales y convenciones de naming (snake_case, pluralización).
++3. Evaluar particionamiento temporal para tablas de logs y mensajes de WhatsApp.
+ 
+EOF
+)

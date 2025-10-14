@@ -1,0 +1,288 @@
+# Contratos de API
+
+## Convenciones Generales
+- **Formato**: JSON UTF-8, camelCase para campos públicos.
+- **Autenticación**: header `Authorization: Bearer <JWT>` para usuarios autenticados; token de servicio con scopes para back-office.
+- **Versionado**: prefijo `/api/v1`. Cambios breaking implican nueva versión.
+- **Errores**: estructura común `{ "errorCode": string, "message": string, "details": object? }`.
+- **Paginación**: parámetros `page`, `pageSize` (máx. 50) cuando aplica.
+
+## Entrevista & Briefing
+### POST /api/v1/interviews/start
+- **Descripción**: inicia una nueva entrevista y crea sesión.
+- **Request**:
+```json
+{
+  "projectType": "inmobiliaria",
+  "contact": {
+    "fullName": "Laura Pérez",
+    "email": "laura@ejemplo.com",
+    "phone": "+5491140010020"
+  },
+  "consents": {
+    "termsAccepted": true,
+    "privacyAccepted": true,
+    "whatsappOptIn": true
+  }
+}
+```
+- **Responses**:
+  - `201 Created`
+```json
+{
+  "interviewId": "intv_123",
+  "sessionToken": "jwt...",
+  "nextQuestion": {
+    "questionId": "q_root",
+    "text": "¿Cuál es el objetivo principal del proyecto?",
+    "type": "open"
+  }
+}
+```
+  - Errores:
+    - `400 Bad Request`: validaciones de esquema (email inválido, falta de consent).
+    - `409 Conflict`: entrevista activa existente para el mismo contacto.
+
+### POST /api/v1/interviews/{interviewId}/answers
+- **Descripción**: guarda respuesta y obtiene siguiente pregunta/resumen.
+- **Request**:
+```json
+{
+  "questionId": "q_root",
+  "answer": "Crear un portal de propiedades con cobranza automática"
+}
+```
+- **Responses**:
+  - `200 OK`
+```json
+{
+  "nextQuestion": {
+    "questionId": "q_budget",
+    "text": "¿Cuál es el presupuesto disponible?",
+    "type": "range",
+    "options": ["<5000", "5000-10000", ">10000"]
+  },
+  "summaryDelta": "Se prioriza automatización de cobranza y panel de propiedades"
+}
+```
+  - `202 Accepted`: cuando el sistema necesita más tiempo (ej. llamada LLM async). Incluye `retryAfter`.
+  - Errores:
+    - `401 Unauthorized`: token inválido o expirado.
+    - `409 Conflict`: entrevista cerrada.
+
+### GET /api/v1/interviews/{interviewId}/brief
+- **Descripción**: obtiene brief consolidado.
+- **Response** `200 OK`:
+```json
+{
+  "interviewId": "intv_123",
+  "status": "completed",
+  "highlights": ["Portal inmobiliario", "Integración WhatsApp"],
+  "mustHaves": ["Panel de propiedades", "Recordatorios de cobranza"],
+  "niceToHaves": ["App mobile"],
+  "risks": ["Datos de CRM legacy"],
+  "pdfUrl": "https://cdn.panos/briefs/intv_123.pdf"
+}
+```
+- Errores: `404 Not Found`, `403 Forbidden`.
+
+## Mockups
+### POST /api/v1/mockups/generate
+- **Descripción**: solicita generación de wireframes.
+- **Request**:
+```json
+{
+  "interviewId": "intv_123",
+  "pages": ["home", "dashboard", "panel_propiedades"],
+  "feedback": "Preferir tonos azules, destacar CTA de seña"
+}
+```
+- **Responses**:
+  - `202 Accepted`
+```json
+{
+  "requestId": "mkp_789",
+  "estimatedMinutes": 5
+}
+```
+  - Errores: `400 Bad Request` (páginas no soportadas), `423 Locked` (mockups en curso).
+
+### GET /api/v1/mockups/{requestId}
+- **Descripción**: obtiene estado y URLs.
+- **Response** `200 OK`:
+```json
+{
+  "requestId": "mkp_789",
+  "status": "ready",
+  "assets": [
+    {
+      "page": "home",
+      "version": 1,
+      "url": "https://mockups.panos/home_v1.png"
+    }
+  ],
+  "updatedAt": "2024-05-12T18:32:00Z"
+}
+```
+- Errores: `404 Not Found`, `409 Conflict` (estado inconsistente), `500 Internal Server Error` (fallo proveedor mockups).
+
+## Pagos (Mercado Pago)
+### POST /api/v1/payments/deposit
+- **Descripción**: crea preferencia de pago para seña.
+- **Request**:
+```json
+{
+  "interviewId": "intv_123",
+  "amount": 120000.00,
+  "currency": "ARS",
+  "channel": "checkout_pro", 
+  "payer": {
+    "name": "Laura Pérez",
+    "email": "laura@ejemplo.com",
+    "identification": {
+      "type": "CUIT",
+      "number": "30-12345678-9"
+    }
+  }
+}
+```
+- **Responses**:
+  - `201 Created`
+```json
+{
+  "paymentId": "pay_456",
+  "preferenceId": "123456789",
+  "checkoutUrl": "https://www.mercadopago.com/checkout/v1/redirect?pref_id=123456789",
+  "expiresAt": "2024-05-19T23:59:59Z"
+}
+```
+  - Errores: `400 Bad Request` (monto inferior al mínimo), `402 Payment Required` (cliente moroso), `409 Conflict` (pago pendiente existente).
+
+### POST /api/v1/payments/webhook
+- **Descripción**: endpoint para notificaciones de Mercado Pago.
+- **Request** (ejemplo simplificado):
+```json
+{
+  "id": "123456789",
+  "live_mode": true,
+  "type": "payment",
+  "data": { "id": "99999999" }
+}
+```
+- **Response**:
+  - `200 OK` con cuerpo vacío.
+- **Validaciones**: firma HMAC, deduplicación, verificación de estado `approved` mediante consulta a `/v1/payments/{id}`.
+- **Errores**: `401 Unauthorized` (firma inválida), `409 Conflict` (duplicado procesado), `422 Unprocessable Entity` (estado no soportado).
+
+### GET /api/v1/payments/{paymentId}
+- **Descripción**: obtiene estado del pago y comprobante.
+- **Response** `200 OK`:
+```json
+{
+  "paymentId": "pay_456",
+  "status": "approved",
+  "amount": 120000.00,
+  "currency": "ARS",
+  "receipt": {
+    "type": "comprobante",
+    "url": "https://cdn.panos/receipts/pay_456.pdf"
+  },
+  "audit": {
+    "mpPaymentId": "99999999",
+    "updatedAt": "2024-05-12T19:05:00Z"
+  }
+}
+```
+- Errores: `404 Not Found`, `409 Conflict` (estado pendiente), `500 Internal Server Error` (fallo conciliación).
+
+## Agenda
+### GET /api/v1/agenda/slots
+- **Descripción**: lista de slots disponibles para la primera entrevista con PANOS.
+- **Request** parámetros: `timezone`, `from`, `to`.
+- **Response** `200 OK`:
+```json
+{
+  "slots": [
+    {
+      "slotId": "slot_001",
+      "start": "2024-05-15T14:00:00-03:00",
+      "end": "2024-05-15T14:45:00-03:00",
+      "consultant": "Mariana (Socio PANOS)"
+    }
+  ]
+}
+```
+- Errores: `400 Bad Request` (ventana inválida), `401 Unauthorized`.
+
+### POST /api/v1/agenda/book
+- **Descripción**: reserva un slot y confirma reunión.
+- **Request**:
+```json
+{
+  "slotId": "slot_001",
+  "interviewId": "intv_123",
+  "channel": "video_call",
+  "notes": "Traer datos de CRM actual"
+}
+```
+- **Response** `201 Created`:
+```json
+{
+  "bookingId": "bk_777",
+  "calendarUrl": "https://calendar.google.com/event?eid=...",
+  "notifications": {
+    "email": "sent",
+    "whatsapp": "queued"
+  }
+}
+```
+- Errores: `409 Conflict` (slot tomado), `402 Payment Required` (seña no confirmada), `423 Locked` (agenda bloqueada por mantenimiento).
+
+## WhatsApp Cloud API
+### POST /api/v1/messaging/whatsapp/send
+- **Descripción**: envía mensaje templated aprobado por Meta.
+- **Request**:
+```json
+{
+  "interviewId": "intv_123",
+  "template": "panos_confirmacion_reunion",
+  "language": "es_AR",
+  "parameters": ["Laura", "15/05 14:00", "https://meet.google.com/abc"],
+  "metadata": {
+    "category": "TRANSACTIONAL"
+  }
+}
+```
+- **Responses**:
+  - `202 Accepted`
+```json
+{
+  "messageId": "wamid.HBgMNTUy...",
+  "status": "queued"
+}
+```
+  - Errores: `400 Bad Request` (template no aprobado), `403 Forbidden` (falta opt-in), `429 Too Many Requests` (límite Meta), `502 Bad Gateway` (error proveedor).
+
+### POST /api/v1/messaging/whatsapp/status
+- **Descripción**: webhook interno para actualizaciones de estado.
+- **Response**: `200 OK`.
+- **Errores**: `401 Unauthorized` (firma Meta inválida), `409 Conflict` (mensaje duplicado).
+
+## Manejo de Errores Globales
+| Código | Situación | Acción recomendada |
+|--------|-----------|--------------------|
+| 400 | Validaciones de input | Mostrar mensaje en UI y permitir corrección |
+| 401 | Token inválido/ausente | Redirigir a flujo de autenticación |
+| 402 | Requiere pago previo | Mostrar instrucción para completar seña |
+| 403 | Falta de permisos/opt-in | Solicitar consentimiento o contactar soporte |
+| 404 | Recurso inexistente | Revisar identificadores, ofrecer reintentar |
+| 409 | Estado conflictivo | Reintentar tras resolver conflicto o contacto soporte |
+| 422 | Entidad no procesable | Registrar y escalar a soporte |
+| 429 | Rate limit alcanzado | Backoff exponencial y alerta operativa |
+| 500 | Error inesperado | Log crítico, alerta on-call |
+| 503 | Dependencia caída | Circuit breaker, mostrar mensaje de indisponibilidad |
+
+## Próximos pasos
+1. Definir esquema OpenAPI/AsyncAPI completo y publicar en repositorio compartido.
+2. Prototipar contract tests para Mercado Pago y WhatsApp usando ambientes sandbox.
+3. Diseñar políticas de versionado y deprecación para plantillas de entrevista y mockups.

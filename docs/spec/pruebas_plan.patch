@@ -1,0 +1,85 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/docs/spec/pruebas_plan.md b/docs/spec/pruebas_plan.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..c1db314877e2e9b9d89ac0e17ad923bc1ece91f9
+--- /dev/null
++++ b/docs/spec/pruebas_plan.md
+@@ -0,0 +1,75 @@
++# Plan de Pruebas
++
++## Objetivos
++- Validar que el flujo E2E (entrevista → mockups → seña → agenda → confirmaciones) funcione con datos reales de sandbox Argentina.
++- Asegurar calidad en integraciones críticas (Mercado Pago, WhatsApp, LLM, mockups) y cumplimiento de criterios de aceptación definidos en historias.
++- Detectar regresiones tempranas mediante automatización continua (CI/CD) y contract testing.
++
++## Alcance
++- MVP Argentina, con focus en vertical inmobiliaria.
++- Navegadores soportados: Chrome, Edge, Safari (últimas dos versiones).
++- Back-end desplegado en ambiente `staging-ar`.
++
++## Pruebas Unitarias
++- **Cobertura mínima**: 70% líneas en servicios de orquestación, entrevista, pagos, agenda.
++- **Casos clave**:
++  - Máquina de estados del orquestador (transiciones válidas/invalidas).
++  - Validaciones de entrevistas (presupuesto mínimo, consentimiento).
++  - Normalización de payloads Mercado Pago y WhatsApp.
++- **Herramientas**: pytest/jest (según stack), mocks para servicios externos.
++
++## Pruebas de Integración
++- **Servicios**: entrevista ↔ LLM (mock server), mockups ↔ proveedor, pagos ↔ Mercado Pago sandbox, agenda ↔ Google Calendar test.
++- **Datos de prueba**: fixtures con contactos argentinos (CUIT/CUIL ficticios).
++- **Validaciones**: manejo de respuestas parciales (HTTP 202), reintentos, idempotencia en webhooks.
++- **Automatización**: pipeline nocturno, reportes en dashboard QA.
++
++## Contract Testing
++- **Herramientas**: Pact o Schemathesis (OpenAPI).
++- **Consumidores**: Front-end, Back-office, Integraciones externas.
++- **Contratos críticos**:
++  - `POST /interviews/start` y `answers` (estructura de preguntas/respuestas).
++  - `POST /payments/deposit` y webhook Mercado Pago (status, firma).
++  - `POST /messaging/whatsapp/send` (templates, metadatos).
++- **Criterio de aprobación**: no breaking changes; verificación en CI antes de merge.
++
++## Pruebas End-to-End (E2E)
++- **Escenarios**:
++  1. Prospecto completa entrevista, recibe mockups, paga seña aprobada y agenda reunión (flujo feliz).
++  2. Pago rechazado por tarjeta → usuario reintenta con link alternativo (fallback Payment Link).
++  3. WhatsApp sin opt-in → sistema bloquea envío y solicita consentimiento.
++  4. Usuario abandona durante mockups → reanudación posterior mantiene estado.
++- **Herramientas**: Playwright/Cypress con datos seed.
++- **Métricas**: duración total, tasa de éxito, capturas de pantalla automáticas, trazas en observabilidad.
++
++## Pruebas No Funcionales
++- **Performance**: pruebas de carga ligera (100 sesiones concurrentes) para validar latencia <1.5s promedio.
++- **Resiliencia**: simulación de caída de Mercado Pago (503) → verificar fallback manual y alertas.
++- **Seguridad**: escaneo OWASP ZAP, pruebas de autorización (usuarios sin permisos accediendo a recursos ajenos).
++
++## Criterios de Aceptación por Flujo Crítico
++| Flujo | Criterios | Evidencia |
++|-------|-----------|-----------|
++| Entrevista | Todas las preguntas renderizan correctamente, persistencia confirmada, resumen generado ≤5s | Logs de prueba + capturas E2E |
++| Mockups | Solicitud genera assets válidos, links accesibles 24h, manejo de errores proveedor | Reporte integración + verificación manual |
++| Pago de seña | Preferencia creada, respuesta `approved` registrada, comprobante PDF disponible y audit log generado | Escenario Gherkin pago + registro en `payment_intents` |
++| Agenda | Slots sincronizados, booking bloquea disponibilidad, confirmaciones email/WhatsApp enviadas | Registro en `bookings` + webhook WhatsApp | 
++| Back-office | Lead visible con estado actualizado, descarga de brief/mockups/pago habilitada | Captura dashboard + logs |
++
++## Gestión de Defectos
++- **Severidad**: crítica (bloquea flujo), mayor, menor, cosmetica.
++- **Herramienta**: Jira board dedicado al MVP.
++- **SLA**: críticas <24h, mayores <3 días.
++
++## Calendario
++- Semana 1: desarrollo pruebas unitarias/integración, setup contract testing.
++- Semana 2: ejecución E2E, regresión completa, pruebas no funcionales.
++
++## Entradas y Salidas
++- **Entradas**: historias refinadas, contratos API, credenciales sandbox.
++- **Salidas**: reporte QA semanal, acta de salida a producción, evidencia de cumplimiento legal (consents, logs).
++
++## Próximos pasos
++1. Configurar pipelines CI/CD con gates de calidad (coverage, contract tests, lint).
++2. Preparar ambiente `staging-ar` con datos seed y credenciales sandbox confirmadas.
++3. Diseñar matriz de trazabilidad requisitos ↔ casos de prueba para auditoría.
+ 
+EOF
+)
