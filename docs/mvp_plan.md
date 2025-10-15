@@ -6,6 +6,7 @@
 - Preparar materiales y métricas para iterar hacia especificación técnica completa.
 
 <<<<<<< ours
+<<<<<<< ours
 ## Alcance (Historias Must)
 - HU1 Captura inicial consentida.
 - HU2 Entrevista adaptativa por vertical.
@@ -34,6 +35,8 @@
 4. **Día 9-10**: Dashboard básico y observabilidad inicial (HU10, HU12).
 5. **Día 10**: End-to-end testing, scripts de soporte, salida controlada a beta.
 =======
+=======
+>>>>>>> theirs
 ## Alcance (Historias Must por Iteración)
 ### Iteración 1 – Semana 1
 **HU1 - Captura inicial consentida**
@@ -44,7 +47,15 @@
   Entonces el sistema registra consentimiento con timestamp, IP, user-agent y canal
   Y habilita el inicio de la entrevista guiada
   ```
+<<<<<<< ours
 - **Definition of Done:** consentimientos versionados, textos legales aprobados por PANOS Legal, logs estructurados en datastore, pruebas de accesibilidad de formularios.
+=======
+- **Definition of Done:**
+  - Consentimientos versionados y almacenados con hash de texto legal.
+  - Textos legales validados por PANOS Legal y accesibles en la UI.
+  - Logs estructurados en datastore con correlación por request_id.
+  - Pruebas de accesibilidad de formularios (teclado + lector de pantalla) ejecutadas.
+>>>>>>> theirs
 - **Dependencias:** textos legales vigentes, configuración de tracking (HU12).
 - **Riesgos:** cambios regulatorios de última hora, rechazo del texto por legal.
 
@@ -56,8 +67,16 @@
   Entonces el sistema marca el opt-in como revocado con timestamp
   Y bloquea futuros envíos hasta nuevo opt-in válido
   ```
+<<<<<<< ours
 - **Definition of Done:** endpoints de registro y revocación probados, evidencia almacenada (ip, timestamp, texto), script manual de auditoría ejecutado.
 - **Dependencias:** almacenamiento de consentimientos (HU1), políticas WhatsApp (docs/spec/whatsapp_politicas).
+=======
+- **Definition of Done:**
+  - Endpoints de registro y revocación probados (unitarios + integración simulada Meta).
+  - Evidencia almacenada (IP, timestamp, texto, canal, user-agent) y exportable.
+  - Script manual de auditoría documentado y verificado.
+- **Dependencias:** almacenamiento de consentimientos (HU1), políticas WhatsApp (docs/spec/whatsapp_politicas.md).
+>>>>>>> theirs
 - **Riesgos:** inconsistencias entre base interna y Meta, pérdida de evidencia.
 
 **HU2 - Entrevista adaptativa por vertical**
@@ -68,7 +87,15 @@
   Entonces el agente despliega preguntas específicas sobre inventario masivo
   Y registra las respuestas en el brief estructurado
   ```
+<<<<<<< ours
 - **Definition of Done:** árbol de preguntas versionado, pruebas con datos dummy, fallback para preguntas no mapeadas, tracking de pasos completados.
+=======
+- **Definition of Done:**
+  - Árbol de preguntas versionado y documentado por vertical.
+  - Pruebas con datos dummy cubriendo bifurcaciones clave.
+  - Fallback diseñado para preguntas no mapeadas y registro de incidencias.
+  - Tracking de pasos completados y tasa de abandono instrumentada.
+>>>>>>> theirs
 - **Dependencias:** esquema de brief (docs/spec/brief_schema.md), contenido legal (HU1).
 - **Riesgos:** cobertura incompleta de vertical, aumento de abandono si la entrevista se extiende demasiado.
 
@@ -80,7 +107,14 @@
   Entonces el panel lateral "Project Brief" se actualiza en tiempo real
   Y resalta campos pendientes o inconsistentes
   ```
+<<<<<<< ours
 - **Definition of Done:** sincronización estado chat-panel validada, persistencia en base de datos con versionado, pruebas de reconexión.
+=======
+- **Definition of Done:**
+  - Sincronización chat-panel validada con pruebas de reconexión.
+  - Persistencia en base de datos con versionado y control de concurrencia.
+  - Alertas visuales para campos incompletos y exportación preliminar del brief.
+>>>>>>> theirs
 - **Dependencias:** HU2 para insumos, modelo de datos (docs/spec/datos_modelo.md).
 - **Riesgos:** condiciones de carrera al persistir, pérdida de datos si se interrumpe la sesión.
 
@@ -92,7 +126,14 @@
   Entonces muestra un mensaje de ajuste con rango sugerido
   Y marca la historia como bloqueada hasta confirmar ajuste
   ```
+<<<<<<< ours
 - **Definition of Done:** reglas de negocio parametrizadas, mensajes localizados, pruebas de límites, logs de validación con contexto.
+=======
+- **Definition of Done:**
+  - Reglas de negocio parametrizadas y testeadas (límites superior/inferior).
+  - Mensajes localizados (ES-AR) con explicación de política.
+  - Logs de validación con contexto y severidad para monitoreo.
+>>>>>>> theirs
 - **Dependencias:** HU3 para datos agregados, catálogos de reglas (docs/spec/seguridad_cumplimiento.md).
 - **Riesgos:** falsos positivos que frustren al usuario, reglas desactualizadas.
 
@@ -104,7 +145,15 @@
   Entonces se generan enlaces a mockups de Home, Dashboard y flujo de contratos
   Y se guardan referencias en el brief
   ```
+<<<<<<< ours
 - **Definition of Done:** integración con herramienta de wireframes mockeada, placeholders identificados, control de tiempo de respuesta, logs de generación.
+=======
+- **Definition of Done:**
+  - Integración con herramienta de wireframes mockeada y latencias medidas.
+  - Placeholders identificados con responsables de contenido.
+  - Control de tiempo de respuesta con alertas si supera 90 segundos.
+  - Logs de generación con parámetros enviados y recibidos.
+>>>>>>> theirs
 - **Dependencias:** HU3 para contenido, acceso a plantilla base de UI.
 - **Riesgos:** tiempos de espera altos, inconsistencias entre brief y mockup.
 
@@ -119,7 +168,14 @@
   Entonces muestra un desglose por módulo con rango mínimo y máximo
   Y registra el cálculo en el dashboard interno
   ```
+<<<<<<< ours
 - **Definition of Done:** fórmulas validadas con finanzas PANOS, exportable PDF/JSON, pruebas con escenarios altos/bajos.
+=======
+- **Definition of Done:**
+  - Fórmulas validadas con finanzas PANOS y casos extremos documentados.
+  - Exportable PDF/JSON con desglose e impuestos estimados.
+  - Validaciones cruzadas con datos históricos (si existen) o supuestos firmados.
+>>>>>>> theirs
 - **Dependencias:** HU4 (datos validados), HU3 (brief completo).
 - **Riesgos:** desalineación con costos reales, errores de redondeo.
 
@@ -131,7 +187,15 @@
   Entonces el prospecto completa el pago exitosamente
   Y recibe comprobante automático en email y WhatsApp
   ```
+<<<<<<< ours
 - **Definition of Done:** integración Checkout Pro en sandbox, webhook simulado funcionando, comprobante con campos fiscales mínimos, logs auditables.
+=======
+- **Definition of Done:**
+  - Integración Checkout Pro en sandbox con casos OK y rechazo cubiertos.
+  - Webhook simulado funcionando con verificación de firma.
+  - Comprobante con campos fiscales mínimos (CUIT PANOS, monto, fecha, referencia) entregado.
+  - Logs auditables con payment_id, external_reference, IP y user-agent.
+>>>>>>> theirs
 - **Dependencias:** HU7 (monto), docs/spec/pagos_flujo.md.
 - **Riesgos:** rechazos por configuración de cuenta, demoras en notificaciones.
 
@@ -143,7 +207,14 @@
   Entonces el sistema agenda la reunión en el calendario PANOS
   Y envía confirmación por email y WhatsApp
   ```
+<<<<<<< ours
 - **Definition of Done:** slots sincronizados con calendario compartido, recordatorios programados, pruebas con huso horario AR.
+=======
+- **Definition of Done:**
+  - Slots sincronizados con calendario compartido y bloqueos anti doble reserva.
+  - Recordatorios programados (24h y 2h) validados en sandbox.
+  - Pruebas con huso horario AR y fallback manual documentado.
+>>>>>>> theirs
 - **Dependencias:** HU8 (estado pagado), integración calendario.
 - **Riesgos:** doble reserva de slots, fallos en notificaciones.
 
@@ -155,7 +226,15 @@
   Entonces visualiza estado de entrevista, pago y agenda por prospecto
   Y puede filtrar por fecha y vertical
   ```
+<<<<<<< ours
 - **Definition of Done:** roles y permisos aplicados, filtros funcionales, métricas clave visibles, pruebas de rendimiento con dataset simulado.
+=======
+- **Definition of Done:**
+  - Roles y permisos aplicados según perfiles PANOS.
+  - Filtros funcionales (fecha, estado, vertical) con paginación.
+  - Métricas clave visibles (conversiones, tasas de opt-in) y export CSV básico.
+  - Pruebas de rendimiento con dataset simulado (>200 leads).
+>>>>>>> theirs
 - **Dependencias:** HU3 (datos de brief), HU8/HU9 (estados), HU12 (logs/metrics).
 - **Riesgos:** exposición de datos sensibles, inconsistencias en sincronización.
 
@@ -167,11 +246,23 @@
   Entonces se visualizan métricas y logs correlacionados por request_id
   Y existen alertas básicas ante fallos de pago o WhatsApp
   ```
+<<<<<<< ours
 - **Definition of Done:** dashboards mínimos configurados, alertas Slack/email activas, retención de logs 30 días, runbook actualizado.
 - **Dependencias:** integraciones previas (HU8, HU9, HU10), docs/spec/nfr_mvp.md.
 - **Riesgos:** falta de cobertura en alertas, ruido por falsos positivos.
 
 **Hito Iteración 2:** Flujo pago → agenda → dashboard operativo probado y demo listo para salida controlada.
+=======
+- **Definition of Done:**
+  - Dashboards mínimos configurados (conversiones, pagos OK/KO, agenda confirmada).
+  - Alertas Slack/email activas con umbrales definidos en docs/spec/nfr_mvp.md.
+  - Retención de logs 30 días y política de borrado documentada.
+  - Runbook actualizado para incidentes de pagos y mensajería.
+- **Dependencias:** integraciones previas (HU8, HU9, HU10), docs/spec/nfr_mvp.md.
+- **Riesgos:** falta de cobertura en alertas, ruido por falsos positivos.
+
+**Hito Iteración 2:** Flujo pago → agenda → dashboard operativo probado y demo lista para salida controlada.
+>>>>>>> theirs
 
 ## Cronograma Iterativo y Hitos
 - **Semana 1 (Iteración 1):**
@@ -179,13 +270,21 @@
   - Día 2-3: HU2 – Entrevista adaptativa.
   - Día 3-4: HU3 – Resumen dinámico.
   - Día 4: HU4 – Validaciones de negocio.
+<<<<<<< ours
   - Día 5: HU5 – Wireframes + revisión. _Hito: Brief interactivo y mockups listos._
+=======
+  - Día 5: HU5 – Wireframes + revisión. _Hito Iteración 1: Brief interactivo y mockups listos._
+>>>>>>> theirs
 - **Semana 2 (Iteración 2):**
   - Día 6: HU7 – Cálculo modular.
   - Día 7-8: HU8 – Pago de seña.
   - Día 8-9: HU9 – Agenda automática.
   - Día 9: HU10 – Dashboard leads.
+<<<<<<< ours
   - Día 10: HU12 – Observabilidad + pruebas E2E. _Hito final: Demo E2E con pago y agenda, lista para prospectos piloto._
+>>>>>>> theirs
+=======
+  - Día 10: HU12 – Observabilidad + pruebas E2E. _Hito Iteración 2: Demo E2E con pago y agenda para prospectos piloto._
 >>>>>>> theirs
 
 ## Flujo End-to-End
