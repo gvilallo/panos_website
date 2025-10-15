@@ -1,7 +1,7 @@
 # ADR 0001: Stack tecnológico del MVP PANOS
 
 - **Fecha**: 2025-Octubre-14
-- **Estado**: Propuesto
+- **Estado**: Aprobado
 
 ## Contexto
 PANOS debe lanzar un MVP operativo en Argentina que permita a un prospecto pasar de una entrevista guiada por IA a la reserva pagada y la agenda de la primera reunión con el equipo. El stack debe equilibrar velocidad de entrega en dos semanas, cumplimiento local (AFIP, Ley 25.326, opt-in WhatsApp), integraciones nativas con Mercado Pago y WhatsApp Cloud API, y la capacidad de iterar sobre flujos conversacionales y mockups sin fricción.
